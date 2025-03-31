@@ -1,0 +1,53 @@
+version: 2.1
+
+executors:
+  java-executor:
+    docker:
+      - image: cimg/openjdk:17.0
+
+jobs:
+  build:
+    executor: java-executor
+    steps:
+      - checkout
+      - run:
+          name: Compile Java Program
+          command: |
+            mkdir -p output
+            echo 'public class HelloWorld { public static void main(String[] args) { System.out.println("Hello, CircleCI!"); } }' > HelloWorld.java
+            javac HelloWorld.java -d output
+      - persist_to_workspace:
+          root: output
+          paths:
+            - HelloWorld.class
+
+  hold:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run: echo "Waiting for approval..."
+      - run: sleep 5  # Simulating a pause (not required for actual hold step)
+      - run: echo "Proceeding after approval."
+
+  test:
+    executor: java-executor
+    steps:
+      - attach_workspace:
+          at: output
+      - run:
+          name: Run Java Program
+          command: java -cp output HelloWorld
+
+workflows:
+  version: 2
+  sample-workflow:
+    jobs:
+      - build
+      - hold:
+          type: approval
+          requires:
+            - build
+      - test:
+          requires:
+            - hold
+
